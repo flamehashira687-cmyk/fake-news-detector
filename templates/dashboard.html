@@ -1,0 +1,653 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TruthLens | Analytics Dashboard</title>
+
+    <!-- Chart.js for interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: Arial, sans-serif;
+            background: #0b1020;
+            color: #f1f5f9;
+        }
+
+        h1 {
+            color: #67e8f9;
+            margin-bottom: 8px;
+        }
+
+        h2 {
+            margin-top: 30px;
+        }
+
+        .muted {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 22px 0;
+        }
+
+        button, .nav-button {
+            display: inline-block;
+            padding: 10px 15px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #67e8f9;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        button:hover, .nav-button:hover {
+            background: #263650;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit, minmax(180px, 1fr)
+            );
+            gap: 16px;
+            margin: 25px 0;
+        }
+
+        .card, .chart-card {
+            padding: 22px;
+            border-radius: 14px;
+            background: #151e33;
+            border: 1px solid #293750;
+            min-width: 0;
+        }
+
+        .number {
+            font-size: 30px;
+            font-weight: bold;
+            margin-top: 12px;
+        }
+
+        .fake-number {
+            color: #f87171;
+        }
+
+        .real-number {
+            color: #4ade80;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .chart-card h3 {
+            margin-top: 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        .history {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 13px;
+            border-bottom: 1px solid #293750;
+        }
+
+        th {
+            color: #67e8f9;
+        }
+
+        td {
+            max-width: 300px;
+            overflow-wrap: anywhere;
+        }
+
+        .fake {
+            color: #f87171;
+            font-weight: bold;
+        }
+
+        .real {
+            color: #4ade80;
+            font-weight: bold;
+        }
+
+        .message {
+            margin-top: 15px;
+            color: #94a3b8;
+        }
+
+        .error {
+            color: #fca5a5;
+        }
+
+        .disclaimer {
+            margin-top: 25px;
+            padding: 14px;
+            background: #151e33;
+            border-left: 3px solid #67e8f9;
+            border-radius: 6px;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                padding: 16px;
+            }
+
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 260px;
+            }
+
+            th, td {
+                padding: 9px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>TruthLens Dashboard</h1>
+
+    <p class="muted">
+        AI-Powered Fake News Detection &amp;
+        News Credibility Analysis
+    </p>
+
+    <div class="toolbar">
+        <button type="button" onclick="goToAnalyzer()">
+            ← Back to Analyzer
+        </button>
+
+        <button type="button" id="refreshButton"
+                onclick="loadDashboard()">
+            ↻ Refresh Dashboard
+        </button>
+    </div>
+
+    <!-- STATISTICS CARDS -->
+    <div class="cards">
+        <div class="card">
+            Total Analyses
+            <div class="number" id="total">—</div>
+        </div>
+
+        <div class="card">
+            Fake Predictions
+            <div class="number fake-number" id="fake">—</div>
+        </div>
+
+        <div class="card">
+            Real Predictions
+            <div class="number real-number" id="real">—</div>
+        </div>
+
+        <div class="card">
+            Average Confidence
+            <div class="number" id="average">—</div>
+        </div>
+
+        <div class="card">
+            Fake Prediction Rate
+            <div class="number" id="fakeRate">—</div>
+        </div>
+
+        <div class="card">
+            Real Prediction Rate
+            <div class="number" id="realRate">—</div>
+        </div>
+    </div>
+
+    <!-- INTERACTIVE CHARTS -->
+    <h2>Prediction Analytics</h2>
+
+    <p class="muted">
+        Explore the distribution of predictions and model confidence.
+    </p>
+
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3>Fake vs Real Predictions</h3>
+            <p class="muted">
+                Distribution across all saved analyses.
+            </p>
+
+            <div class="chart-container">
+                <canvas id="predictionChart"></canvas>
+            </div>
+
+            <p class="message" id="predictionChartMessage"></p>
+        </div>
+
+        <div class="chart-card">
+            <h3>Confidence Distribution</h3>
+            <p class="muted">
+                Confidence levels in the latest 100 analyses.
+            </p>
+
+            <div class="chart-container">
+                <canvas id="confidenceChart"></canvas>
+            </div>
+
+            <p class="message" id="confidenceChartMessage"></p>
+        </div>
+    </div>
+
+    <!-- HISTORY -->
+    <h2>Recent Analysis History</h2>
+
+    <p class="muted">
+        Latest 100 saved analyses. Delete removes a record
+        from your local analysis database.
+    </p>
+
+    <div class="history">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Article</th>
+                    <th>Prediction</th>
+                    <th>Confidence</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="history">
+                <tr>
+                    <td colspan="6">Loading history...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p id="status" class="message" aria-live="polite"></p>
+
+    <div class="disclaimer">
+        <strong>Important:</strong>
+        These charts summarize the model's predictions, not verified
+        factual truth. Model confidence is not necessarily a calibrated
+        probability that an article is true or false. Always check
+        important claims against independent, reliable sources.
+    </div>
+
+<script>
+    let predictionChart = null;
+    let confidenceChart = null;
+    let loading = false;
+
+    function goToAnalyzer() {
+        window.location.assign("/");
+    }
+
+    function showNumber(id, value) {
+        document.getElementById(id).textContent = value;
+    }
+
+    function getConfidenceBucket(confidence) {
+        if (confidence < 60) return "Low";
+        if (confidence < 80) return "Moderate";
+        return "High";
+    }
+
+    function renderPredictionChart(stats) {
+        const canvas = document.getElementById("predictionChart");
+        const message = document.getElementById(
+            "predictionChartMessage"
+        );
+
+        const fake = Number(stats.fake_count) || 0;
+        const real = Number(stats.real_count) || 0;
+
+        if (predictionChart) {
+            predictionChart.destroy();
+            predictionChart = null;
+        }
+
+        if (fake + real === 0) {
+            message.textContent =
+                "No analyses yet. Analyze an article to populate this chart.";
+            return;
+        }
+
+        message.textContent = "";
+
+        predictionChart = new Chart(canvas, {
+            type: "doughnut",
+
+            data: {
+                labels: ["FAKE predictions", "REAL predictions"],
+
+                datasets: [{
+                    data: [fake, real],
+                    backgroundColor: ["#f87171", "#4ade80"],
+                    borderColor: "#151e33",
+                    borderWidth: 4,
+                    hoverOffset: 12
+                }]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "62%",
+
+                plugins: {
+                    legend: {
+                        position: "bottom",
+                        labels: {
+                            color: "#e2e8f0",
+                            padding: 18
+                        }
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = fake + real;
+                                const count = context.raw;
+                                const percent = total
+                                    ? ((count / total) * 100).toFixed(1)
+                                    : "0.0";
+
+                                return context.label + ": " +
+                                    count + " (" + percent + "%)";
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderConfidenceChart(history) {
+        const canvas = document.getElementById("confidenceChart");
+        const message = document.getElementById(
+            "confidenceChartMessage"
+        );
+
+        if (confidenceChart) {
+            confidenceChart.destroy();
+            confidenceChart = null;
+        }
+
+        const buckets = {
+            Low: 0,
+            Moderate: 0,
+            High: 0
+        };
+
+        history.forEach(item => {
+            const confidence = Number(item.confidence);
+
+            if (!Number.isFinite(confidence)) return;
+
+            buckets[getConfidenceBucket(confidence)]++;
+        });
+
+        if (history.length === 0) {
+            message.textContent =
+                "No saved analyses available for confidence statistics.";
+            return;
+        }
+
+        message.textContent =
+            "Based on " + history.length + " recent analyses.";
+
+        confidenceChart = new Chart(canvas, {
+            type: "bar",
+
+            data: {
+                labels: ["Low (<60%)", "Moderate (60–79.99%)", "High (≥80%)"],
+
+                datasets: [{
+                    label: "Number of analyses",
+                    data: [
+                        buckets.Low,
+                        buckets.Moderate,
+                        buckets.High
+                    ],
+                    backgroundColor: [
+                        "#f87171",
+                        "#fbbf24",
+                        "#4ade80"
+                    ],
+                    borderRadius: 7,
+                    maxBarThickness: 70
+                }]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                scales: {
+                    x: {
+                        ticks: { color: "#cbd5e1" },
+                        grid: { display: false }
+                    },
+
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: "#cbd5e1",
+                            precision: 0
+                        },
+                        grid: { color: "#293750" }
+                    }
+                },
+
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+
+                    tooltip: {
+                        enabled: true
+                    }
+                }
+            }
+        });
+    }
+
+    function renderHistory(history) {
+        const tbody = document.getElementById("history");
+        tbody.replaceChildren();
+
+        if (!history.length) {
+            const row = tbody.insertRow();
+            const cell = row.insertCell();
+
+            cell.colSpan = 6;
+            cell.textContent =
+                "No analyses yet. Analyze an article first.";
+            return;
+        }
+
+        history.forEach(item => {
+            const row = tbody.insertRow();
+
+            function addCell(value, className = "") {
+                const cell = row.insertCell();
+                cell.textContent = value ?? "";
+
+                if (className) {
+                    cell.className = className;
+                }
+
+                return cell;
+            }
+
+            addCell(item.id);
+
+            const article = (item.news_text || "")
+                .replace(/\s+/g, " ");
+
+            addCell(
+                article.length > 120
+                    ? article.slice(0, 120) + "…"
+                    : article
+            );
+
+            addCell(
+                item.prediction,
+                item.prediction === "FAKE" ? "fake" : "real"
+            );
+
+            addCell(
+                item.confidence + "% (" +
+                item.confidence_level + ")"
+            );
+
+            addCell(item.created_at);
+
+            const actionCell = row.insertCell();
+            const deleteButton = document.createElement("button");
+
+            deleteButton.textContent = "Delete";
+
+            deleteButton.onclick = async () => {
+                if (!confirm(
+                    "Delete this analysis from history?"
+                )) {
+                    return;
+                }
+
+                deleteButton.disabled = true;
+
+                try {
+                    const response = await fetch(
+                        "/api/history/" + encodeURIComponent(item.id),
+                        { method: "DELETE" }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error("Delete request failed.");
+                    }
+
+                    await loadDashboard();
+                } catch (error) {
+                    alert("Could not delete this record.");
+                    deleteButton.disabled = false;
+                }
+            };
+
+            actionCell.appendChild(deleteButton);
+        });
+    }
+
+    async function loadDashboard() {
+        if (loading) return;
+
+        loading = true;
+
+        const refreshButton = document.getElementById("refreshButton");
+        const status = document.getElementById("status");
+
+        refreshButton.disabled = true;
+        status.textContent = "Updating dashboard...";
+
+        try {
+            const [statsResponse, historyResponse] = await Promise.all([
+                fetch("/api/stats", { cache: "no-store" }),
+                fetch("/api/history", { cache: "no-store" })
+            ]);
+
+            if (!statsResponse.ok || !historyResponse.ok) {
+                throw new Error(
+                    "Could not retrieve dashboard data from Flask."
+                );
+            }
+
+            const stats = await statsResponse.json();
+            const history = await historyResponse.json();
+
+            showNumber("total", stats.total_analyses);
+            showNumber("fake", stats.fake_count);
+            showNumber("real", stats.real_count);
+
+            showNumber(
+                "average",
+                stats.average_confidence == null
+                    ? "—"
+                    : stats.average_confidence + "%"
+            );
+
+            const total = Number(stats.total_analyses) || 0;
+            const fake = Number(stats.fake_count) || 0;
+            const real = Number(stats.real_count) || 0;
+
+            showNumber(
+                "fakeRate",
+                total ? ((fake / total) * 100).toFixed(1) + "%" : "—"
+            );
+
+            showNumber(
+                "realRate",
+                total ? ((real / total) * 100).toFixed(1) + "%" : "—"
+            );
+
+            renderPredictionChart(stats);
+            renderConfidenceChart(history);
+            renderHistory(history);
+
+            status.textContent = "Dashboard updated successfully.";
+
+        } catch (error) {
+            console.error("Dashboard error:", error);
+            status.textContent =
+                "Could not load data. Check Flask and the browser console.";
+            status.className = "message error";
+
+        } finally {
+            loading = false;
+            refreshButton.disabled = false;
+        }
+    }
+
+    loadDashboard();
+</script>
+</body>
+</html>

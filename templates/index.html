@@ -1,0 +1,713 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TruthLens | Fake News Detection</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1020;
+      color: #edf2ff;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 7%;
+      border-bottom: 1px solid #252d43;
+    }
+
+    .logo { font-size: 23px; font-weight: 800; }
+    .logo span, .eyebrow { color: #64e6c2; }
+
+    .tag {
+      color: #9ca9c6;
+      font-size: 13px;
+    }
+
+    nav { display: flex; align-items: center; gap: 18px; }
+
+    nav a {
+      color: #64e6c2;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    nav a:hover { text-decoration: underline; }
+
+    main {
+      max-width: 1000px;
+      margin: 55px auto;
+      padding: 0 22px;
+    }
+
+    .hero { text-align: center; margin-bottom: 35px; }
+
+    .eyebrow {
+      letter-spacing: 2px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 52px);
+      margin: 16px 0;
+    }
+
+    .subtitle {
+      color: #a8b4ce;
+      line-height: 1.7;
+      max-width: 650px;
+      margin: auto;
+    }
+
+    .panel {
+      background: #131b30;
+      border: 1px solid #293550;
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 20px 70px #0003;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      background: #0c1325;
+      border: 1px solid #35415d;
+      border-radius: 12px;
+      color: white;
+      padding: 16px;
+      font: inherit;
+      line-height: 1.6;
+      outline: none;
+    }
+
+    textarea:focus { border-color: #64e6c2; }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .muted { color: #9ca9c6; font-size: 13px; }
+
+    button {
+      background: #64e6c2;
+      color: #081a20;
+      font-size: 15px;
+      font-weight: bold;
+      border: 0;
+      border-radius: 10px;
+      padding: 14px 22px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .6; cursor: wait; }
+
+    #result {
+      display: none;
+      margin-top: 24px;
+      padding: 24px;
+      border-radius: 14px;
+      background: #0c1325;
+      border: 1px solid #35415d;
+    }
+
+    #result h2 { margin-top: 0; }
+    .prediction { font-size: 28px; font-weight: bold; }
+    .fake { color: #ff8f9b; }
+    .real { color: #64e6c2; }
+    .warning { color: #ffd28a; line-height: 1.6; }
+
+    .meter {
+      height: 8px;
+      background: #303a51;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+
+    #meterFill {
+      height: 100%;
+      width: 0;
+      background: #64e6c2;
+      transition: width .3s;
+    }
+
+    .result-section {
+      margin-top: 25px;
+      padding-top: 18px;
+      border-top: 1px solid #293550;
+    }
+
+    .result-section h3 { margin-bottom: 8px; }
+
+    .phrase-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .phrase {
+      display: inline-block;
+      background: #202b43;
+      border: 1px solid #35415d;
+      color: #ffd28a;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+
+    .explanation-note {
+      color: #9ca9c6;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .feature-card {
+      background: #131b30;
+      border: 1px solid #293550;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .feature-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 9px;
+      overflow-wrap: anywhere;
+    }
+
+    .feature-word { font-weight: bold; }
+
+    .feature-impact {
+      font-size: 12px;
+      color: #a8b4ce;
+      text-align: right;
+    }
+
+    .impact-track {
+      height: 6px;
+      background: #303a51;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .impact-fill {
+      height: 100%;
+      border-radius: 8px;
+    }
+
+    .impact-positive { background: #ff8f9b; }
+    .impact-negative { background: #64e6c2; }
+
+    .empty-state {
+      color: #a8b4ce;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .verify-button {
+      margin-top: 18px;
+      background: transparent;
+      color: #64e6c2;
+      border: 1px solid #64e6c2;
+    }
+
+    .verify-button:hover { background: #64e6c214; }
+
+    .verify-status {
+      margin-top: 12px;
+      color: #a8b4ce;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .claim-card {
+      background: #131b30;
+      border: 1px solid #293550;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .claim-card h4 { margin: 0 0 8px; color: #edf2ff; }
+    .claim-meta { color: #a8b4ce; font-size: 13px; line-height: 1.6; }
+    .claim-rating {
+      display: inline-block;
+      margin: 8px 0;
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: #202b43;
+      color: #ffd28a;
+      font-size: 12px;
+    }
+
+    .claim-link { color: #64e6c2; overflow-wrap: anywhere; }
+
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #8e9bb5;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 18px 5%; flex-wrap: wrap; }
+      main { margin-top: 35px; }
+      .panel { padding: 18px; }
+      .controls button { width: 100%; }
+      nav { width: 100%; }
+      .feature-top { align-items: flex-start; flex-direction: column; }
+      .feature-impact { text-align: left; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div>
+      <div class="logo">Truth<span>Lens</span></div>
+      <div class="tag">AI NEWS ANALYSIS</div>
+    </div>
+
+    <nav>
+      <a href="/">Analyzer</a>
+      <a href="/dashboard">Dashboard ↗</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">ARTIFICIAL INTELLIGENCE · NLP · XAI</div>
+      <h1>Look beyond the <span style="color:#64e6c2">headline.</span></h1>
+      <p class="subtitle">
+        Analyze news content using machine learning. Explore the model's
+        prediction, confidence, potentially suspicious wording and,
+        when supported, the words influencing its prediction.
+      </p>
+    </section>
+
+    <section class="panel">
+      <form id="newsForm">
+        <label for="newsText">News article</label>
+
+        <textarea
+          id="newsText"
+          name="news_text"
+          placeholder="Paste a news headline and article here..."
+          required
+        ></textarea>
+
+        <div class="controls">
+          <span class="muted" id="wordCount">
+            0 words · Minimum 30 characters
+          </span>
+          <button id="analyzeBtn" type="submit">
+            Analyze news →
+          </button>
+        </div>
+      </form>
+
+      <section id="result" aria-live="polite">
+        <h2>Analysis results</h2>
+
+        <div id="prediction" class="prediction"></div>
+        <p id="confidence"></p>
+
+        <div class="meter">
+          <div id="meterFill"></div>
+        </div>
+
+        <p id="wordResult" class="muted"></p>
+
+        <div class="result-section">
+          <h3>Potentially suspicious phrases</h3>
+          <div id="phrases" class="phrase-list"></div>
+          <p class="explanation-note">
+            These phrases are simple wording indicators, not proof that an
+            article is false. Their absence does not establish credibility.
+          </p>
+        </div>
+
+        <div class="result-section">
+          <h3>Explainable AI · Important words</h3>
+          <p class="explanation-note" id="xaiIntro">
+            Showing the words that influenced the model's prediction, when
+            supported by the loaded model.
+          </p>
+
+          <div id="explanation"></div>
+        </div>
+
+        <div class="result-section" id="verificationSection">
+          <h3>Source Verification · Fact-check search</h3>
+          <p class="explanation-note">
+            Search for published fact-check reviews related to this article.
+            A matching review may cover only part of the claim; no match does not mean the article is true.
+          </p>
+          <button id="verifyBtn" class="verify-button" type="button">
+            Check fact-check sources →
+          </button>
+          <p id="verifyStatus" class="verify-status" aria-live="polite"></p>
+          <div id="verificationResults"></div>
+        </div>
+
+        <p id="disclaimer" class="warning"></p>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    TruthLens · Machine-learning based news analysis<br>
+    Predictions and explanations describe model behavior, not verified facts.
+    Check important claims against independent, reliable sources.
+  </footer>
+
+  <script>
+    const form = document.getElementById("newsForm");
+    const input = document.getElementById("newsText");
+    const button = document.getElementById("analyzeBtn");
+    const verifyButton = document.getElementById("verifyBtn");
+    const result = document.getElementById("result");
+
+    const get = (id) => document.getElementById(id);
+
+    input.addEventListener("input", () => {
+      const text = input.value.trim();
+      const words = text ? text.split(/\s+/).length : 0;
+
+      get("wordCount").textContent =
+        `${words} words · ${input.value.length} characters`;
+    });
+
+    function showPhrases(phrases) {
+      const container = get("phrases");
+      container.replaceChildren();
+
+      if (!Array.isArray(phrases) || phrases.length === 0) {
+        container.textContent =
+          "No phrases from the current indicator list were detected.";
+        return;
+      }
+
+      phrases.forEach((phrase) => {
+        const tag = document.createElement("span");
+        tag.className = "phrase";
+        tag.textContent = phrase;
+        container.appendChild(tag);
+      });
+    }
+
+    function showExplanation(explanation) {
+      const container = get("explanation");
+      const intro = get("xaiIntro");
+
+      container.replaceChildren();
+
+      if (!explanation || explanation.available !== true) {
+        const message = document.createElement("p");
+        message.className = "empty-state";
+        message.textContent =
+          explanation && explanation.message
+            ? explanation.message
+            : "Feature explanations are not available for the currently loaded model. The prediction can still be displayed.";
+        container.appendChild(message);
+        return;
+      }
+
+      intro.textContent =
+        "These are the strongest word-level signals identified by the model for this prediction. They describe model behavior, not whether the claims are true.";
+
+      const features = Array.isArray(explanation.features)
+        ? explanation.features
+        : Array.isArray(explanation.important_words)
+          ? explanation.important_words.map((item) => ({
+              ...item,
+              impact: item.contribution,
+              direction: item.direction
+            }))
+          : [];
+
+      if (features.length === 0) {
+        const message = document.createElement("p");
+        message.className = "empty-state";
+        message.textContent =
+          "The model did not return individual feature contributions for this article.";
+        container.appendChild(message);
+        return;
+      }
+
+      const list = document.createElement("div");
+      list.className = "feature-list";
+
+      features.forEach((feature) => {
+        const card = document.createElement("div");
+        card.className = "feature-card";
+
+        const top = document.createElement("div");
+        top.className = "feature-top";
+
+        const word = document.createElement("span");
+        word.className = "feature-word";
+        word.textContent = String(feature.word ?? feature.feature ?? "Unknown");
+
+        const impact = document.createElement("span");
+        impact.className = "feature-impact";
+
+        const contribution = Number(feature.contribution ?? feature.impact ?? 0);
+        const isPositive = contribution >= 0;
+
+        impact.textContent =
+          `${isPositive ? "+" : ""}${contribution.toFixed(4)} contribution`;
+
+        top.append(word, impact);
+
+        const track = document.createElement("div");
+        track.className = "impact-track";
+
+        const fill = document.createElement("div");
+        fill.className =
+          "impact-fill " +
+          (isPositive ? "impact-positive" : "impact-negative");
+
+        const magnitude = Math.abs(contribution);
+        const maxMagnitude = Math.max(
+          ...features.map((item) =>
+            Math.abs(Number(item.contribution ?? item.impact ?? 0))
+          ),
+          0.000001
+        );
+
+        fill.style.width =
+          `${Math.max(3, (magnitude / maxMagnitude) * 100)}%`;
+
+        track.appendChild(fill);
+        card.append(top, track);
+        list.appendChild(card);
+      });
+
+      container.appendChild(list);
+
+      const legend = document.createElement("p");
+      legend.className = "explanation-note";
+      legend.textContent =
+        "Bar length represents relative contribution magnitude within this list. Positive and negative directions depend on how the backend defines its explanation.";
+      container.appendChild(legend);
+    }
+
+    function addTextElement(parent, tagName, className, text) {
+      const element = document.createElement(tagName);
+      if (className) element.className = className;
+      element.textContent = text || "";
+      parent.appendChild(element);
+      return element;
+    }
+
+    function showVerificationResults(results) {
+      const container = get("verificationResults");
+      container.replaceChildren();
+
+      if (!Array.isArray(results) || results.length === 0) {
+  return;
+}
+
+      results.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "claim-card";
+
+        addTextElement(card, "h4", "", item.title || item.claim || "Fact-check review");
+
+        if (item.rating) {
+          addTextElement(card, "span", "claim-rating", `Rating: ${item.rating}`);
+        }
+
+        const meta = [
+          item.claimant ? `Claimant: ${item.claimant}` : "",
+          item.publisher ? `Publisher: ${item.publisher}` : "",
+          item.review_date ? `Review date: ${item.review_date}` : ""
+        ].filter(Boolean).join(" · ");
+
+        if (meta) addTextElement(card, "p", "claim-meta", meta);
+
+        if (item.claim && item.claim !== item.title) {
+          addTextElement(card, "p", "claim-meta", `Claim reviewed: ${item.claim}`);
+        }
+
+        if (item.url) {
+          const link = document.createElement("a");
+          link.className = "claim-link";
+          link.href = item.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "Read original fact-check ↗";
+          card.appendChild(link);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    verifyButton.addEventListener("click", async () => {
+      const article = input.value.trim();
+      const status = get("verifyStatus");
+      const results = get("verificationResults");
+
+      if (article.length < 30) {
+        status.textContent = "Enter at least 30 characters of news text before searching.";
+        input.focus();
+        return;
+      }
+
+      verifyButton.disabled = true;
+      verifyButton.textContent = "Searching fact-check sources...";
+      status.textContent = "Searching Google Fact Check results. This may take a moment.";
+      results.replaceChildren();
+
+      try {
+        const response = await fetch("/api/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: article })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Fact-check search failed.");
+        }
+
+        showVerificationResults(data.results);
+
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          status.textContent = `Found ${data.results.length} matching fact-check review(s). Check each source and the exact claim it reviewed.`;
+        } else {
+          status.textContent = data.message ||
+            "No matching reviews found. No result does not establish truth or falsity.";
+        }
+      } catch (error) {
+        status.textContent = error.message ||
+          "Unable to search fact-check sources. Check the server and try again.";
+      } finally {
+        verifyButton.disabled = false;
+        verifyButton.textContent = "Check fact-check sources →";
+      }
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const article = input.value.trim();
+
+      if (article.length < 30) {
+        alert("Please enter at least 30 characters of news text.");
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Analyzing...";
+      result.style.display = "block";
+
+      get("prediction").textContent = "Analyzing your article...";
+      get("prediction").className = "prediction";
+      get("confidence").textContent = "";
+      get("wordResult").textContent = "";
+      get("phrases").textContent = "";
+      get("explanation").textContent = "";
+      get("disclaimer").textContent = "";
+      get("meterFill").style.width = "0%";
+
+      try {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: article })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Analysis failed.");
+        }
+
+        const isFake = String(data.prediction).toUpperCase() === "FAKE";
+
+        get("prediction").textContent = data.prediction;
+        get("prediction").className =
+          "prediction " + (isFake ? "fake" : "real");
+
+        get("confidence").textContent =
+          `Model confidence: ${data.confidence}% (${data.confidence_level})`;
+
+        const confidence = Number(data.confidence);
+        get("meterFill").style.width =
+          `${Math.min(100, Math.max(0, confidence))}%`;
+
+        get("meterFill").style.background =
+          data.confidence_level === "Low"
+            ? "#ffd28a"
+            : isFake
+              ? "#ff8f9b"
+              : "#64e6c2";
+
+        get("wordResult").textContent =
+          `Words analyzed: ${data.word_count}`;
+
+        showPhrases(data.suspicious_phrases);
+        showExplanation(data.explanation);
+
+        get("disclaimer").textContent =
+          data.disclaimer ||
+          "This is a machine-learning prediction, not a factual verification. Check reliable independent sources.";
+
+        if (data.confidence_level === "Low") {
+          get("disclaimer").textContent +=
+            " The model reports low confidence, so treat this result with extra caution.";
+        }
+
+      } catch (error) {
+        get("prediction").textContent = "Analysis error";
+        get("prediction").className = "prediction warning";
+        get("confidence").textContent = error.message;
+        get("disclaimer").textContent =
+          "Check that the Flask server is running, then try again.";
+        get("explanation").replaceChildren();
+      } finally {
+        button.disabled = false;
+        button.textContent = "Analyze news →";
+      }
+    });
+  </script>
+</body>
+</html>
