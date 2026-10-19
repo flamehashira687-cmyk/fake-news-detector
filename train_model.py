@@ -1,6 +1,6 @@
 
-from pathlib import Path
 import pandas as pd
+import re
 import joblib
 
 from sklearn.model_selection import train_test_split
@@ -10,59 +10,82 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
-    confusion_matrix,
+    confusion_matrix
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-
-fake_path = BASE_DIR / "Fake.csv"
-true_path = BASE_DIR / "True.csv"
-
-if not fake_path.exists() or not true_path.exists():
-    raise FileNotFoundError(
-        "Fake.csv and True.csv must be in the project folder."
-    )
-
+# -----------------------------
+# 1. Load datasets
+# -----------------------------
 print("Loading datasets...")
-fake = pd.read_csv(fake_path)
-real = pd.read_csv(true_path)
 
-fake["label"] = "FAKE"
-real["label"] = "REAL"
+fake_df = pd.read_csv("Fake.csv")
+real_df = pd.read_csv("True.csv")
 
-df = pd.concat([fake, real], ignore_index=True)
+fake_df["label"] = "FAKE"
+real_df["label"] = "REAL"
 
-# Combine headline and article text.
+df = pd.concat([fake_df, real_df], ignore_index=True)
+
+# -----------------------------
+# 2. Clean data
+# -----------------------------
+print("Cleaning dataset...")
+
 df["title"] = df["title"].fillna("")
 df["text"] = df["text"].fillna("")
+
 df["content"] = (
-    df["title"].astype(str) + " " + df["text"].astype(str)
+    df["title"].astype(str) + " " +
+    df["text"].astype(str)
 ).str.strip()
 
-df = df[df["content"].str.len() > 0].copy()
-df = df.drop_duplicates(subset=["content"])
+df = df[df["content"] != ""]
+df = df.drop_duplicates(subset=["content"]).reset_index(drop=True)
 
-# Remove exact Reuters source markers that can act as shortcuts.
-# The model still learns from the remaining article text.
-df["content"] = df["content"].str.replace(
-    r"(?i)^\s*[^.]{0,80}\s*-\s*",
-    "",
-    regex=True,
+# Remove source-style prefixes sometimes found in the text
+df["content"] = df["content"].apply(
+    lambda text: re.sub(
+        r"^\s*\[[^\]]+\]\s*",
+        "",
+        text
+    )
 )
 
 X = df["content"]
 y = df["label"]
 
-print("Dataset size:", len(df))
-print("Label counts:\n", y.value_counts())
+print(f"Total articles: {len(df)}")
+print("\nDataset distribution:")
+print(y.value_counts())
 
-X_train, X_test, y_train, y_test = train_test_split(
+# -----------------------------
+# 3. Split into train, validation and test
+# -----------------------------
+X_train, X_temp, y_train, y_temp = train_test_split(
     X,
     y,
-    test_size=0.2,
+    test_size=0.40,
     random_state=42,
-    stratify=y,
+    stratify=y
 )
+
+X_val, X_test, y_val, y_test = train_test_split(
+    X_temp,
+    y_temp,
+    test_size=0.50,
+    random_state=42,
+    stratify=y_temp
+)
+
+print(f"\nTraining samples: {len(X_train)}")
+print(f"Validation samples: {len(X_val)}")
+print(f"Testing samples: {len(X_test)}")
+
+# -----------------------------
+# 4. Build model with C = 0.05
+# -----------------------------
+print("\nTraining Logistic Regression model...")
+print("Selected C value: 0.05")
 
 model = Pipeline([
     (
@@ -72,36 +95,61 @@ model = Pipeline([
             max_features=100000,
             ngram_range=(1, 2),
             min_df=2,
-            sublinear_tf=True,
-        ),
+            sublinear_tf=True
+        )
     ),
     (
         "classifier",
         LogisticRegression(
-        C=0.01,
-        max_iter=1000,
-        random_state=42,
-        ),
-    ),
+            C=0.05,
+            max_iter=1000,
+            random_state=42
+        )
+    )
 ])
 
-print("\nTraining model...")
+# Train on training data
 model.fit(X_train, y_train)
 
-predictions = model.predict(X_test)
+# -----------------------------
+# 5. Validation evaluation
+# -----------------------------
+val_predictions = model.predict(X_val)
+val_accuracy = accuracy_score(y_val, val_predictions)
 
-print("\nTest accuracy:", round(
-    accuracy_score(y_test, predictions), 4
-))
-print("\nClassification report:")
-print(classification_report(y_test, predictions))
-print("Confusion matrix [FAKE, REAL]:")
-print(confusion_matrix(
-    y_test, predictions, labels=["FAKE", "REAL"]
-))
+print(f"\nValidation Accuracy: {val_accuracy * 100:.2f}%")
 
-model_path = BASE_DIR / "fake_news_model.joblib"
-joblib.dump(model, model_path)
+# -----------------------------
+# 6. Final test evaluation
+# -----------------------------
+test_predictions = model.predict(X_test)
+test_accuracy = accuracy_score(y_test, test_predictions)
 
-print("\nModel saved to:", model_path)
-print("Training complete!")
+print(f"\nFinal Test Accuracy: {test_accuracy * 100:.2f}%")
+
+print("\nClassification Report:")
+print(
+    classification_report(
+        y_test,
+        test_predictions,
+        labels=["FAKE", "REAL"],
+        zero_division=0
+    )
+)
+
+print("Confusion Matrix (rows = actual, columns = predicted):")
+print(
+    confusion_matrix(
+        y_test,
+        test_predictions,
+        labels=["FAKE", "REAL"]
+    )
+)
+
+# -----------------------------
+# 7. Save trained model
+# -----------------------------
+joblib.dump(model, "fake_news_model.joblib")
+
+print("\nModel saved as fake_news_model.joblib")
+print("Training and testing completed!")
