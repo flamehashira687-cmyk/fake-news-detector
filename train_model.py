@@ -1,4 +1,6 @@
 
+import nt
+
 import pandas as pd
 import re
 import joblib
@@ -82,10 +84,10 @@ print(f"Validation samples: {len(X_val)}")
 print(f"Testing samples: {len(X_test)}")
 
 # -----------------------------
-# 4. Build model with C = 0.05
+# 4. Build model with C = 0.06
 # -----------------------------
 print("\nTraining Logistic Regression model...")
-print("Selected C value: 0.05")
+print("Selected C value: 0.06")
 
 model = Pipeline([
     (
@@ -101,7 +103,7 @@ model = Pipeline([
     (
         "classifier",
         LogisticRegression(
-            C=0.05,
+            C=0.06,
             max_iter=1000,
             random_state=42
         )
