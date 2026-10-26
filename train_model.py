@@ -84,10 +84,10 @@ print(f"Validation samples: {len(X_val)}")
 print(f"Testing samples: {len(X_test)}")
 
 # -----------------------------
-# 4. Build model with C = 0.06
+# 4. Build model with C = 0.075
 # -----------------------------
 print("\nTraining Logistic Regression model...")
-print("Selected C value: 0.06")
+print("Selected C value: 0.075")
 
 model = Pipeline([
     (
@@ -103,7 +103,7 @@ model = Pipeline([
     (
         "classifier",
         LogisticRegression(
-            C=0.06,
+            C=0.075,
             max_iter=1000,
             random_state=42
         )
