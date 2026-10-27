@@ -149,7 +149,34 @@ print(
 )
 
 # -----------------------------
-# 7. Save trained model
+# 7. Export incorrect predictions
+# -----------------------------
+print("\nExporting incorrect predictions...")
+
+error_df = pd.DataFrame({
+    "actual": y_test,
+    "predicted": test_predictions,
+    "content": X_test
+})
+
+errors = error_df[
+    error_df["actual"] != error_df["predicted"]
+].copy()
+
+errors.to_csv("prediction_errors.csv", index=False)
+
+print(f"Incorrect predictions: {len(errors)}")
+print("Saved to prediction_errors.csv")
+
+print("\nSample incorrect predictions:")
+for _, row in errors.head(10).iterrows():
+    print("-" * 60)
+    print("Actual:", row["actual"])
+    print("Predicted:", row["predicted"])
+    print("Article:", str(row["content"])[:500])
+
+# -----------------------------
+# 8. Save trained model
 # -----------------------------
 joblib.dump(model, "fake_news_model.joblib")
 

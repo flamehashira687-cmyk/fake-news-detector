@@ -7,3 +7,6 @@ __pycache__/
 *.py[cod]
 truthlens.db
 .vscode/
+dataset/
+prediction_errors.csv
+
