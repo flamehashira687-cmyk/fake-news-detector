@@ -45,13 +45,17 @@ df = df[df["content"] != ""]
 df = df.drop_duplicates(subset=["content"]).reset_index(drop=True)
 
 # Remove source-style prefixes sometimes found in the text
+
+# Remove common Reuters attribution markers
 df["content"] = df["content"].apply(
     lambda text: re.sub(
-        r"^\s*\[[^\]]+\]\s*",
-        "",
-        text
-    )
+        r"\s*\(Reuters\)\s*-\s*",
+        " ",
+        text,
+        flags=re.IGNORECASE
+    ).strip()
 )
+
 
 X = df["content"]
 y = df["label"]
